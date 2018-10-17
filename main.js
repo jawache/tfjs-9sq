@@ -33,7 +33,10 @@ var RAW_DATA = null;
 var LABELS = [];
 var INPUTS = [];
 var WEIGHTS = null;
-var DATA_SIZE = 10; // The data set is 10,000 we are using only 10 examples here!
+var DATA_SIZE = 1000; // The data set is 10,000 we are using only 10 examples here!
+var TRAIN_STEPS = 100;
+
+// tf.ENV.set("DEBUG", true);
 
 function preload() {
   console.log("👉 Preload");
@@ -65,7 +68,7 @@ function prepareData() {
   for (let row of RAW_DATA.getArray().slice(0, DATA_SIZE)) {
     row = row.map(x => x.trim()).map(x => parseInt(x));
     ys.push(row[0]);
-    xs.push(row.slice(1));
+    xs.push(row.slice(1).map(x => x / 255));
   }
   console.log(ys);
   console.log(xs);
@@ -81,7 +84,7 @@ function trainModel() {
   console.log("👉 Train");
 
   // Initialise the Weights
-  WEIGHTS = tf.variable(tf.randomNormal([1, 9]));
+  WEIGHTS = tf.variable(tf.randomNormal([1, 9]), true);
   console.log("WEIGHTS ");
   WEIGHTS.print();
 
@@ -90,10 +93,10 @@ function trainModel() {
     // [[255,255,255,0,0,0,0,0,0],...]
     // Will return an output tensor which matches the labels like
     // [1,..]
-    return inputs
-      .mul(WEIGHTS)
-      .sum((axis = 1))
-      .step(0);
+    // console.log("PREDICT ");
+    // inputs.matMul(WEIGHTS.transpose()).print();
+    return inputs.matMul(WEIGHTS.transpose());
+    // .step(0);
   }
 
   function loss(predicted, actual) {
@@ -101,10 +104,26 @@ function trainModel() {
     // Needs to return a number which if lower means we have matched more rows
     // I'm taking one away from the other, suming the difference and then squaring.
 
+    /*
+    var a = tf.tensor([1,1,0])
+    var b = tf.tensor([1,0,1])
+    a.sub(b).print()
+    Tensor
+        [0, 1, -1]    
+    a.sub(b).abs().print()
+    Tensor
+        [0, 1, 1]    
+    a.sub(b).abs().sum().print()
+    Tensor
+        2
+    */
+
     let x = predicted // So e.g. [1,1,1] - [1,0,0]
       .sub(actual) // should result in [0,1,1]
-      .sum() // should result in 2
-      .square(); // should result in 4
+      .square()
+      // .abs() // Don't care about negatives
+      .sum(); // should result in 2
+
     return x;
   }
 
@@ -117,17 +136,19 @@ function trainModel() {
   console.log("COST FUNCTION ");
   loss(predict(INPUTS), LABELS).print();
 
-  const optimizer = tf.train.sgd(0.1);
+  const optimizer = tf.train.sgd(0.0001);
 
-  for (let i = 0; i < 10; i++) {
-    tf.tidy(() => {
-      const returnCost = true;
-      let cost = optimizer.minimize(() => {
-        let PREDICTIONS = predict(INPUTS);
-        return loss(PREDICTIONS, LABELS);
-      }, returnCost);
-      console.log(`LOSS [${i}]: ${cost.dataSync()}`);
-      console.log(`EPOC WEIGHTS: ${WEIGHTS.dataSync()}`);
-    });
-  }
+  (async () => {
+    for (let i = 0; i < TRAIN_STEPS; i++) {
+      tf.tidy(() => {
+        const returnCost = true;
+        let cost = optimizer.minimize(() => {
+          return loss(predict(INPUTS), LABELS);
+        }, returnCost);
+        console.log(`LOSS [${i}]: ${cost.dataSync()}`);
+        // console.log(`EPOC WEIGHTS: ${WEIGHTS.dataSync()}`);
+      });
+      await tf.nextFrame();
+    }
+  })();
 }
