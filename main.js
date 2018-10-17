@@ -1,8 +1,39 @@
+/***
+ *
+ *
+ * We want to train a model which will return 1 if the bottom 3 numbers are greater than the top three numbers, else 0
+ *
+ * e.g.
+ *
+ * 255,255,255
+ *   0,  0,  0
+ *   0,  0,  0
+ *
+ * Should return 0 and
+ *
+ *   0,  0,  0
+ *   0,  0,  0
+ * 255,255,255
+ *
+ * Should return 1
+ *
+ * We can train a simple model to solve this by multiplying the input matrix by another with 9 weights
+ *
+ *  -1, -1, -1     255, 255, 255
+ *   0,  0,  0  x    0,   0,   0
+ *   1,  1,  1       0,   0,   0
+ *
+ * Then if we sum up all the numbers the result should be -ve if the top row is higher or +ve if the bottom row is higher.
+ *
+ * The goal is to train a model using the input data which results in 9 weights like the above.
+ *
+ */
+
 var RAW_DATA = null;
 var LABELS = [];
 var INPUTS = [];
 var WEIGHTS = null;
-var DATA_SIZE = 10;
+var DATA_SIZE = 10; // The data set is 10,000 we are using only 10 examples here!
 
 function preload() {
   console.log("👉 Preload");
@@ -48,35 +79,6 @@ function prepareData() {
 
 function trainModel() {
   console.log("👉 Train");
-
-  /***
-   *
-   *
-   * We want to train a model which will return 1 if the bottom 3 numbers are greater than the top three numbers, else 0
-   *
-   * e.g.
-   *
-   * 255,255,255
-   *   0,  0,  0
-   *   0,  0,  0
-   *
-   * Should return 0 and
-   *
-   *   0,  0,  0
-   *   0,  0,  0
-   * 255,255,255
-   *
-   * Should return 1
-   *
-   * We can train a simple model to solve this by multiplying the input matrix by another with 9 weights
-   *
-   *  -1, -1, -1     255, 255, 255
-   *   0,  0,  0  x    0,   0,   0
-   *   1,  1,  1       0,   0,   0
-   *
-   * Then if we sum up all the numbers the result should be -ve if the top row is higher or +ve if the bottom row is higher.
-   *
-   */
 
   // Initialise the Weights
   WEIGHTS = tf.variable(tf.randomNormal([1, 9]));
