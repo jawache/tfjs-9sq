@@ -34,7 +34,7 @@ var LABELS = [];
 var INPUTS = [];
 var WEIGHTS = null;
 var DATA_SIZE = 1000; // The data set is 10,000 we are using only 10 examples here!
-var TRAIN_STEPS = 100;
+var TRAIN_STEPS = 0;
 
 // tf.ENV.set("DEBUG", true);
 
@@ -67,6 +67,7 @@ function prepareData() {
   let xs = []; // [ [...],[...]]
   for (let row of RAW_DATA.getArray().slice(0, DATA_SIZE)) {
     row = row.map(x => x.trim()).map(x => parseInt(x));
+    // ys.push(row[0] * 2 - 1);
     ys.push(row[0]);
     xs.push(row.slice(1).map(x => x / 255));
   }
@@ -84,7 +85,8 @@ function trainModel() {
   console.log("👉 Train");
 
   // Initialise the Weights
-  WEIGHTS = tf.variable(tf.randomNormal([1, 9]), true);
+  WEIGHTS = tf.variable(tf.truncatedNormal([1, 9]), true);
+  // -- THIS IS WORSE! WEIGHTS = tf.variable(tf.randomNormal([1, 9]), true);
   console.log("WEIGHTS ");
   WEIGHTS.print();
 
@@ -121,8 +123,7 @@ function trainModel() {
     let x = predicted // So e.g. [1,1,1] - [1,0,0]
       .sub(actual) // should result in [0,1,1]
       .square()
-      // .abs() // Don't care about negatives
-      .sum(); // should result in 2
+      .mean();
 
     return x;
   }
@@ -136,7 +137,7 @@ function trainModel() {
   console.log("COST FUNCTION ");
   loss(predict(INPUTS), LABELS).print();
 
-  const optimizer = tf.train.sgd(0.0001);
+  const optimizer = tf.train.sgd(0.01);
 
   (async () => {
     for (let i = 0; i < TRAIN_STEPS; i++) {
@@ -146,9 +147,9 @@ function trainModel() {
           return loss(predict(INPUTS), LABELS);
         }, returnCost);
         console.log(`LOSS [${i}]: ${cost.dataSync()}`);
-        // console.log(`EPOC WEIGHTS: ${WEIGHTS.dataSync()}`);
       });
       await tf.nextFrame();
     }
+    console.log(`EPOC WEIGHTS: ${WEIGHTS.dataSync()}`);
   })();
 }
