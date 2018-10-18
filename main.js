@@ -30,11 +30,10 @@
  */
 
 var RAW_DATA = null;
-var LABELS = [];
-var INPUTS = [];
 var WEIGHTS = null;
-var DATA_SIZE = 1000; // The data set is 10,000 we are using only 10 examples here!
-var TRAIN_STEPS = 0;
+var EPOCHS = 100;
+var BATCHER = null;
+var BATCH_SIZE = 2000;
 
 // tf.ENV.set("DEBUG", true);
 
@@ -46,110 +45,117 @@ function preload() {
 function setup() {
   console.log("👉 Setup");
   prepareData();
+  validateModel();
+  createWeights();
   trainModel();
 }
 
 function prepareData() {
-  /* 
-  From the data.csv
-
-  Each row is like this:-
-
-  1,255,255,255,0,0,0,0,0,0
-
-
-  1 is the label
-  255,255,255,0,0,0,0,0,0 is the input data
-  */
-
   console.log("👉 prepareData");
-  let ys = []; // [...]
-  let xs = []; // [ [...],[...]]
-  for (let row of RAW_DATA.getArray().slice(0, DATA_SIZE)) {
+  let labels = []; // [...]
+  let inputs = []; // [ [...],[...]]
+  for (let row of RAW_DATA.getArray()) {
     row = row.map(x => x.trim()).map(x => parseInt(x));
-    // ys.push(row[0] * 2 - 1);
-    ys.push(row[0]);
-    xs.push(row.slice(1).map(x => x / 255));
+    labels.push(row[0] * 2 - 1); // Conver to -1 and 1
+    inputs.push(row.slice(1).map(x => x / 255));
   }
-  console.log(ys);
-  console.log(xs);
+  BATCHER = new Batcher(labels, inputs, BATCH_SIZE);
+}
 
-  INPUTS = tf.tensor2d(xs);
-  LABELS = tf.tensor1d(ys);
+function createWeights() {
+  // Initialise the Weights
+  console.log("👉 createWeights");
 
-  INPUTS.print();
-  LABELS.print();
+  // This should be the IDEAL set of target weights!
+  WEIGHTS = tf.variable(
+    tf.tensor([
+      [1 / 3.0, 1 / 3.0, 1 / 3.0, 0, 0, 0, -1 / 3.0, -1 / 3.0, -1 / 3.0]
+    ])
+  );
+
+  // WEIGHTS = tf.variable(tf.truncatedNormal([1, 9]), true);
+
+  console.log("WEIGHTS -->");
+  WEIGHTS.print();
+}
+
+function predict(inputs) {
+  // Given an input tensor like
+  // [[255,255,255,0,0,0,0,0,0],...]
+  // Will return an output tensor which matches the labels like
+  // [1,..]
+  // console.log("PREDICT ");
+  // inputs.matMul(WEIGHTS.transpose()).print();
+  return inputs.matMul(WEIGHTS.transpose());
+  // .step(0);
+}
+
+function loss(predicted, actual) {
+  let x = predicted // So e.g. [1,1,1] - [1,0,0]
+    .sub(actual) // should result in [0,1,1]
+    .square()
+    .mean();
+
+  return x;
+}
+
+function validateModel() {
+  console.log("👉 validateModel");
+
+  // This should be the IDEAL set of target weights!
+  WEIGHTS = tf.variable(
+    tf.tensor([
+      [1 / 3.0, 1 / 3.0, 1 / 3.0, 0, 0, 0, -1 / 3.0, -1 / 3.0, -1 / 3.0]
+    ])
+  );
+
+  // Small set of inputs
+  const inputs = tf.tensor([
+    [1, 1, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 1, 1, 1],
+    [0, 0, 0.5, 0, 0.3, 0, 0, 0.7, 0]
+  ]);
+
+  // Small set of labels, 1 means top 3 is higher, -1 means bottom 3 is higher
+  const labels = tf.tensor([[1, -1, -1]]).transpose();
+
+  console.log("PREDICTED LABELS -->");
+  predict(inputs).print();
+  console.log("ACTUAL LABELS -->");
+  labels.print();
+  console.log("LOSS -->");
+  // For this to work I think the loss has to be 0 here, instead it's 0.2903703451156616
+  loss(predict(inputs), labels).print();
 }
 
 function trainModel() {
-  console.log("👉 Train");
+  const optimizer = tf.train.sgd(0.001);
 
-  // Initialise the Weights
-  WEIGHTS = tf.variable(tf.truncatedNormal([1, 9]), true);
-  // -- THIS IS WORSE! WEIGHTS = tf.variable(tf.randomNormal([1, 9]), true);
-  console.log("WEIGHTS ");
-  WEIGHTS.print();
-
-  function predict(inputs) {
-    // Given an input tensor like
-    // [[255,255,255,0,0,0,0,0,0],...]
-    // Will return an output tensor which matches the labels like
-    // [1,..]
-    // console.log("PREDICT ");
-    // inputs.matMul(WEIGHTS.transpose()).print();
-    return inputs.matMul(WEIGHTS.transpose());
-    // .step(0);
-  }
-
-  function loss(predicted, actual) {
-    // The loss between the actual labels tensor [1,0,1,0,1...] and what the model predicted [1,0,0,0,0...]
-    // Needs to return a number which if lower means we have matched more rows
-    // I'm taking one away from the other, suming the difference and then squaring.
-
-    /*
-    var a = tf.tensor([1,1,0])
-    var b = tf.tensor([1,0,1])
-    a.sub(b).print()
-    Tensor
-        [0, 1, -1]    
-    a.sub(b).abs().print()
-    Tensor
-        [0, 1, 1]    
-    a.sub(b).abs().sum().print()
-    Tensor
-        2
-    */
-
-    let x = predicted // So e.g. [1,1,1] - [1,0,0]
-      .sub(actual) // should result in [0,1,1]
-      .square()
-      .mean();
-
-    return x;
-  }
-
-  console.log("INPUTS ");
-  INPUTS.print();
-  console.log("LABELS ");
-  LABELS.print();
-  console.log("PREDICT ");
-  predict(INPUTS).print();
-  console.log("COST FUNCTION ");
-  loss(predict(INPUTS), LABELS).print();
-
-  const optimizer = tf.train.sgd(0.01);
+  // We need to run for each batch and each epoch
+  const trainingSteps = EPOCHS * BATCHER.batchCount;
 
   (async () => {
-    for (let i = 0; i < TRAIN_STEPS; i++) {
+    for (let i = 0; i < trainingSteps; i++) {
       tf.tidy(() => {
         const returnCost = true;
+
+        // Calculate how many batches
+        const batchNum = i % BATCHER.batchCount;
         let cost = optimizer.minimize(() => {
-          return loss(predict(INPUTS), LABELS);
+          // Get inputs and labels for this batch
+          const { inputs, labels } = BATCHER.nextBatch(batchNum);
+
+          // Calculate loss
+          return loss(predict(inputs), labels.transpose());
         }, returnCost);
-        console.log(`LOSS [${i}]: ${cost.dataSync()}`);
+
+        if (i % 100 === 0) {
+          console.log(`LOSS [${i}]: ${cost.dataSync()}`);
+          console.log(`EPOC WEIGHTS: `);
+          WEIGHTS.print();
+        }
       });
       await tf.nextFrame();
     }
-    console.log(`EPOC WEIGHTS: ${WEIGHTS.dataSync()}`);
   })();
 }
