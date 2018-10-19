@@ -1,41 +1,25 @@
-/***
- *
- *
- * We want to train a model which will return 1 if the bottom 3 numbers are greater than the top three numbers, else 0
- *
- * e.g.
- *
- * 255,255,255
- *   0,  0,  0
- *   0,  0,  0
- *
- * Should return 0 and
- *
- *   0,  0,  0
- *   0,  0,  0
- * 255,255,255
- *
- * Should return 1
- *
- * We can train a simple model to solve this by multiplying the input matrix by another with 9 weights
- *
- *  -1, -1, -1     255, 255, 255
- *   0,  0,  0  x    0,   0,   0
- *   1,  1,  1       0,   0,   0
- *
- * Then if we sum up all the numbers the result should be -ve if the top row is higher or +ve if the bottom row is higher.
- *
- * The goal is to train a model using the input data which results in 9 weights like the above.
- *
- */
-
 var RAW_DATA = null;
 var WEIGHTS = null;
-var EPOCHS = 100;
+var EPOCHS = 3000;
 var BATCHER = null;
-var BATCH_SIZE = 2000;
+var BATCH_SIZE = 1000;
 
-// tf.ENV.set("DEBUG", true);
+var TRAINING = {
+  inputs: [],
+  labels: []
+};
+
+var TESTING = {
+  inputs: [],
+  labels: []
+};
+
+// class Data {
+//   constructor(trainingFeatures, testingFeatures) {
+//     this.trainingFeatures = this.parse(trainingFeatures);
+//     this.testingFeatures = this.parse(testingFeatures);
+//   }
+// }
 
 function preload() {
   console.log("👉 Preload");
@@ -52,14 +36,33 @@ function setup() {
 
 function prepareData() {
   console.log("👉 prepareData");
-  let labels = []; // [...]
-  let inputs = []; // [ [...],[...]]
-  for (let row of RAW_DATA.getArray()) {
-    row = row.map(x => x.trim()).map(x => parseInt(x));
-    labels.push(row[0] * 2 - 1); // Conver to -1 and 1
-    inputs.push(row.slice(1).map(x => x / 255));
+
+  // Use 80% as the training data
+  const trainingData = RAW_DATA.getArray().slice(0, 2000);
+
+  // Use 20% as the testing data
+  const testingData = RAW_DATA.getArray().slice(2000, 2500);
+
+  function parse(data, store) {
+    store.labels = [];
+    store.inputs = [];
+    for (let row of data) {
+      // Convert each item to an integer
+      row = row.map(x => x.trim()).map(x => parseInt(x));
+
+      // Get the first item, these are the labels
+      store.labels.push(row[0]);
+
+      // Get the remaining items in the row, divide by 255 to get from 0 -> 1
+      store.inputs.push(row.slice(1).map(x => x / 255));
+    }
+    store.labels = [store.labels];
   }
-  BATCHER = new Batcher(labels, inputs, BATCH_SIZE);
+
+  parse(trainingData, TRAINING);
+  parse(testingData, TESTING);
+
+  console.log(TRAINING);
 }
 
 function createWeights() {
@@ -67,13 +70,9 @@ function createWeights() {
   console.log("👉 createWeights");
 
   // This should be the IDEAL set of target weights!
-  WEIGHTS = tf.variable(
-    tf.tensor([
-      [1 / 3.0, 1 / 3.0, 1 / 3.0, 0, 0, 0, -1 / 3.0, -1 / 3.0, -1 / 3.0]
-    ])
-  );
+  // WEIGHTS = tf.variable(tf.tensor([[1, 1, 1, 0, 0, 0, -1, -1, -1]]));
 
-  // WEIGHTS = tf.variable(tf.truncatedNormal([1, 9]), true);
+  WEIGHTS = tf.variable(tf.truncatedNormal([1, 9]), true);
 
   console.log("WEIGHTS -->");
   WEIGHTS.print();
@@ -86,7 +85,7 @@ function predict(inputs) {
   // [1,..]
   // console.log("PREDICT ");
   // inputs.matMul(WEIGHTS.transpose()).print();
-  return inputs.matMul(WEIGHTS.transpose());
+  return inputs.dot(WEIGHTS.transpose());
   // .step(0);
 }
 
@@ -99,15 +98,26 @@ function loss(predicted, actual) {
   return x;
 }
 
+// function loss(predicted, actual) {
+//   return tf
+//     .sign(predicted)
+//     .sub(actual)
+//     .mean();
+// }
+
+function acc(predicted, actual) {
+  return tf
+    .sign(predicted)
+    .mul(actual)
+    .mean();
+}
+
 function validateModel() {
   console.log("👉 validateModel");
 
   // This should be the IDEAL set of target weights!
-  WEIGHTS = tf.variable(
-    tf.tensor([
-      [1 / 3.0, 1 / 3.0, 1 / 3.0, 0, 0, 0, -1 / 3.0, -1 / 3.0, -1 / 3.0]
-    ])
-  );
+  // [1 / 3.0, 1 / 3.0, 1 / 3.0, 0, 0, 0, -1 / 3.0, -1 / 3.0, -1 / 3.0]
+  WEIGHTS = tf.variable(tf.tensor([[1, 1, 1, 0, 0, 0, -1, -1, -1]]));
 
   // Small set of inputs
   const inputs = tf.tensor([
@@ -126,36 +136,45 @@ function validateModel() {
   console.log("LOSS -->");
   // For this to work I think the loss has to be 0 here, instead it's 0.2903703451156616
   loss(predict(inputs), labels).print();
+  console.log("ACC -->");
+  // For this to work I think the loss has to be 0 here, instead it's 0.2903703451156616
+  acc(predict(inputs), labels).print();
 }
 
-function trainModel() {
-  const optimizer = tf.train.sgd(0.001);
+async function trainModel() {
+  const optimizer = tf.train.sgd(0.01);
 
-  // We need to run for each batch and each epoch
-  const trainingSteps = EPOCHS * BATCHER.batchCount;
+  const inputs = tf.tensor(TRAINING.inputs);
+  const labels = tf.tensor(TRAINING.labels).transpose();
 
-  (async () => {
-    for (let i = 0; i < trainingSteps; i++) {
-      tf.tidy(() => {
-        const returnCost = true;
+  const testingInputs = tf.tensor(TESTING.inputs);
+  const testingLabels = tf.tensor(TESTING.labels).transpose();
 
-        // Calculate how many batches
-        const batchNum = i % BATCHER.batchCount;
-        let cost = optimizer.minimize(() => {
-          // Get inputs and labels for this batch
-          const { inputs, labels } = BATCHER.nextBatch(batchNum);
+  for (let i = 0; i < EPOCHS; i++) {
+    tf.tidy(() => {
+      let cost = optimizer.minimize(() => {
+        return loss(predict(inputs), labels);
+      }, true);
+      // console.log(`[${i}] ${cost.dataSync()[0]}`);
 
-          // Calculate loss
-          return loss(predict(inputs), labels.transpose());
-        }, returnCost);
-
-        if (i % 100 === 0) {
-          console.log(`LOSS [${i}]: ${cost.dataSync()}`);
-          console.log(`EPOC WEIGHTS: `);
-          WEIGHTS.print();
-        }
-      });
-      await tf.nextFrame();
-    }
-  })();
+      if (i % 100 === 0) {
+        // Calculate accuracy
+        console.log(`[${i}]======================================`);
+        console.log(`LOSS:`);
+        cost.print();
+        console.log(`EPOC WEIGHTS: `);
+        WEIGHTS.print();
+        console.log("-- TESTING --");
+        const predictions = predict(testingInputs);
+        console.log("LOSS: ");
+        const testingLoss = loss(predictions, testingLabels);
+        testingLoss.print();
+        console.log("ACCURACY: ");
+        const testingAcc = acc(predictions, testingLabels);
+        testingAcc.print();
+        console.log(`[${i}]======================================`);
+      }
+    });
+    await tf.nextFrame();
+  }
 }

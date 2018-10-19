@@ -2,6 +2,12 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch Program",
+      "program": "${workspaceFolder}/node.js"
+    },
+    {
       "name": "Attach to JavaScript Functions",
       "type": "node",
       "request": "attach",
