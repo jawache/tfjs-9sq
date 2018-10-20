@@ -2,6 +2,7 @@ class Data {
   constructor(raw_data) {
     this.training = this.parse(raw_data.getArray().slice(0, 2000));
     this.testing = this.parse(raw_data.getArray().slice(2000, 2500));
+    this.predictions = [];
   }
 
   parse(data) {
@@ -19,8 +20,8 @@ class Data {
     }
 
     // Convert to tensors
-    inputs = tf.tensor(inputs);
-    labels = tf.tensor([labels]).transpose(); // We need to convert into columns
+    // inputs = tf.tensor(inputs);
+    // labels = tf.tensor([labels]).transpose(); // We need to convert into columns
 
     return { labels, inputs };
   }

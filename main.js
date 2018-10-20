@@ -1,10 +1,12 @@
 // Configuration
-var EPOCHS = 3000;
+var EPOCHS = 100;
 
 // Variables
 var RAW_DATA = null;
 var WEIGHTS = null;
 var DATA = null;
+var PERFORMANCE = null;
+var DASHBOARD = null;
 
 function preload() {
   console.log("👉 Preload");
@@ -13,10 +15,21 @@ function preload() {
 
 function setup() {
   console.log("👉 Setup");
+  setupCanvas();
   prepareData();
   validateModel();
   createWeights();
   trainModel();
+}
+
+function setupCanvas() {
+  createCanvas(windowWidth, windowHeight);
+  background(50);
+  DASHBOARD = new Dashboard();
+}
+
+function draw() {
+  DASHBOARD.draw();
 }
 
 function prepareData() {
@@ -86,8 +99,11 @@ function validateModel() {
 async function trainModel() {
   const optimizer = tf.train.sgd(0.01);
 
-  const inputs = DATA.training.inputs;
-  const labels = DATA.training.labels;
+  const inputs = tf.tensor(DATA.training.inputs);
+  const labels = tf.tensor([DATA.training.labels]).transpose(); // We need to convert into columns
+
+  const testing_inputs = tf.tensor(DATA.testing.inputs);
+  const testing_labels = tf.tensor([DATA.testing.labels]).transpose(); // We need to convert into columns
 
   for (let i = 0; i < EPOCHS; i++) {
     tf.tidy(() => {
@@ -96,10 +112,7 @@ async function trainModel() {
       }, true);
       // console.log(`[${i}] ${cost.dataSync()[0]}`);
 
-      if (i % 100 === 0) {
-        const testingInputs = DATA.testing.inputs;
-        const testingLabels = DATA.testing.labels;
-
+      if (i % 10 === 0) {
         // Calculate accuracy
         console.log(`[${i}]======================================`);
         console.log(`LOSS:`);
@@ -107,14 +120,15 @@ async function trainModel() {
         console.log(`EPOC WEIGHTS: `);
         WEIGHTS.print();
         console.log("-- TESTING --");
-        const predictions = predict(testingInputs);
+        const predictions = predict(testing_inputs);
+        DATA.testing.predictions = predictions.sign().dataSync();
         console.log("LOSS: ");
-        const testingLoss = loss(predictions, testingLabels);
+        const testingLoss = loss(predictions, testing_labels);
         testingLoss.print();
         console.log("ACCURACY: ");
-        const testingAcc = acc(predictions, testingLabels);
+        const testingAcc = acc(predictions, testing_labels);
         testingAcc.print();
-        console.log(`[${i}]======================================`);
+        DASHBOARD.setData(DATA.testing);
       }
     });
     await tf.nextFrame();
