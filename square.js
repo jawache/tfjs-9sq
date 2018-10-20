@@ -1,11 +1,60 @@
 const SQ_SIZE = 5;
 
-class Dashboard {
-  constructor() {
+class Panel {
+  constructor(title, x, y, width, height) {
+    this.title = title;
+    this.x = x;
+    this.y = y;
+    // this.width = width;
+    // this.height = height;
+    this.children = [];
+  }
+
+  add(child) {
+    this.children.push(child);
+    return this;
+  }
+
+  draw() {
+    push();
+    // Position this panel where it's designed to be
+    translate(this.x, this.y);
+
+    // Type the title
+    // fill(255)
+    //   .strokeWeight(0)
+    //   .textSize(16)
+    //   .textFont("Helvetica", 12);
+    // text(this.title, 0, 15);
+    // Move down a bit
+    translate(0, 20);
+
+    for (let child of this.children) {
+      child.draw(this.width, this.height);
+    }
+    pop();
+  }
+}
+
+class Squares {
+  constructor(data) {
+    this.data = data;
     this.squares = [];
   }
 
-  setData({ inputs, labels, predictions }) {
+  setData({
+    inputs,
+    labels,
+    predictions,
+    loss,
+    weights,
+    testingLoss,
+    testingAcc
+  }) {
+    this.loss = loss;
+    this.weights = weights;
+    this.testingLoss = testingLoss;
+    this.testingAcc = testingAcc;
     this.squares = [];
     for (let i = 0; i < inputs.length; i++) {
       let input = inputs[i].map(x => Math.round(x * 255));
@@ -15,9 +64,27 @@ class Dashboard {
     }
   }
 
-  draw() {
-    // console.log("Draw Called");
-    this.squares.map(x => x.draw());
+  draw(width, height) {
+    this.setData(this.data.testing);
+    // Draw each individual square
+    push();
+
+    for (let i = 0; i < this.squares.length; i++) {
+      push();
+      // Show 25 per row
+      const col = i % 25;
+      const row = parseInt(Math.floor(i / 25));
+
+      // Each is 15 width and 25 height, add 2 px padding per
+      const x = col * 17;
+      const y = row * 27;
+      translate(x, y);
+
+      this.squares[i].draw(width, height);
+
+      pop();
+    }
+    pop();
   }
 }
 
@@ -27,25 +94,10 @@ class Square {
     this.inputs = inputs;
     this.label = label;
     this.predicted = predicted;
-    const col = this.id % 25;
-    const row = parseInt(Math.floor(this.id / 25));
-
-    this.x = col * 17 + 10;
-    this.y = row * 27 + 10;
-    // console.log(this.x, this.y);
   }
   draw() {
     push();
     noStroke();
-    translate(this.x, this.y);
-
-    // rectMode(CENTER);
-    // Outer Stroke
-    // strokeWeight(1);
-    // stroke("green");
-    // noFill();
-    // rect(-1, -1, 16, 26);
-    // noStroke();
 
     rect(0, 0, SQ_SIZE, SQ_SIZE);
     fill(this.inputs[0]);
@@ -80,6 +132,80 @@ class Square {
     text(icon(this.label), 1, 22.5);
     text(icon(this.predicted), 7, 22.5);
 
+    pop();
+  }
+}
+
+class Details {
+  constructor(data) {
+    this.data = data;
+    this.counter = 0;
+  }
+
+  draw(width, height) {
+    const { loss, weights, testingLoss, testingAcc, epoch } = this.data.testing;
+    this.counter++;
+
+    // Type the title
+    fill(255)
+      .strokeWeight(0)
+      .textFont("Helvetica", 12);
+
+    text(`EPOCH:`, 0, 20);
+    text(`LOSS:`, 0, 40);
+    text(`ACCURACY:`, 0, 60);
+    text(`WEIGHTS:`, 0, 80);
+
+    textFont("Courier", 12);
+
+    text(epoch, 100, 20);
+    text(loss.toFixed(4), 100, 40);
+    text(`${(testingAcc * 100).toFixed(2)}%`, 100, 60);
+    push();
+    translate(100, 120);
+    for (let i = 0; i < 9; i++) {
+      const col = i % 3;
+      const row = parseInt(Math.floor(i / 3));
+      const w = weights[i].toFixed(5);
+      const x = col * 80;
+      const y = row * 20;
+      text(w, x, y);
+    }
+    pop();
+
+    push();
+    {
+      let input = this.data.testing.inputs[
+        parseInt(
+          Math.floor(
+            Math.abs(Math.sin(epoch) * this.data.testing.inputs.length)
+          )
+        )
+      ].map(x => Math.round(x * 255));
+      const size = 25;
+      translate(0, 100);
+      strokeWeight(2);
+      stroke(255);
+      noFill();
+      rect(0, 0, size, size);
+      fill(input[0]);
+      rect(size, 0, size, size);
+      fill(input[1]);
+      rect(2 * size, 0, size, size);
+      fill(input[2]);
+      rect(0, size, size, size);
+      fill(input[3]);
+      rect(size, size, size, size);
+      fill(input[4]);
+      rect(2 * size, size, size, size);
+      fill(input[5]);
+      rect(0, 2 * size, size, size);
+      fill(input[6]);
+      rect(size, 2 * size, size, size);
+      fill(input[7]);
+      rect(2 * size, 2 * size, size, size);
+      fill(input[8]);
+    }
     pop();
   }
 }

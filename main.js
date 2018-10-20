@@ -1,12 +1,13 @@
 // Configuration
-var EPOCHS = 100;
+var EPOCHS = 2000;
 
 // Variables
 var RAW_DATA = null;
 var WEIGHTS = null;
 var DATA = null;
 var PERFORMANCE = null;
-var DASHBOARD = null;
+var CANVAS = null;
+var DRAW_CANVAS = false;
 
 function preload() {
   console.log("👉 Preload");
@@ -15,21 +16,42 @@ function preload() {
 
 function setup() {
   console.log("👉 Setup");
-  setupCanvas();
+
   prepareData();
+
+  setupCanvas();
+
   validateModel();
   createWeights();
   trainModel();
 }
 
 function setupCanvas() {
+  frameRate(5);
   createCanvas(windowWidth, windowHeight);
-  background(50);
-  DASHBOARD = new Dashboard();
+
+  CANVAS = new Panel("9Squares by Asim Hussain", 0, 0);
+
+  const dashboardPanel = new Panel("Testing Data", 0, 0);
+  dashboardPanel.add(new Squares(DATA));
+
+  const detailsPanel = new Panel("Details Data", 450, 0);
+  detailsPanel.add(new Details(DATA));
+
+  CANVAS.add(dashboardPanel).add(detailsPanel);
 }
 
 function draw() {
-  DASHBOARD.draw();
+  background(50);
+
+  translate(10, 10);
+  fill(255)
+    .strokeWeight(0)
+    .textSize(16)
+    .textFont("Helvetica", 24);
+  text("9 Squares", 0, 24);
+
+  CANVAS.draw();
 }
 
 function prepareData() {
@@ -105,7 +127,7 @@ async function trainModel() {
   const testing_inputs = tf.tensor(DATA.testing.inputs);
   const testing_labels = tf.tensor([DATA.testing.labels]).transpose(); // We need to convert into columns
 
-  for (let i = 0; i < EPOCHS; i++) {
+  for (let i = 0; i <= EPOCHS; i++) {
     tf.tidy(() => {
       let cost = optimizer.minimize(() => {
         return loss(predict(inputs), labels);
@@ -115,20 +137,26 @@ async function trainModel() {
       if (i % 10 === 0) {
         // Calculate accuracy
         console.log(`[${i}]======================================`);
+
         console.log(`LOSS:`);
         cost.print();
         console.log(`EPOC WEIGHTS: `);
         WEIGHTS.print();
         console.log("-- TESTING --");
         const predictions = predict(testing_inputs);
-        DATA.testing.predictions = predictions.sign().dataSync();
         console.log("LOSS: ");
         const testingLoss = loss(predictions, testing_labels);
         testingLoss.print();
         console.log("ACCURACY: ");
         const testingAcc = acc(predictions, testing_labels);
         testingAcc.print();
-        DASHBOARD.setData(DATA.testing);
+
+        DATA.testing.loss = cost.dataSync()[0];
+        DATA.testing.weights = WEIGHTS.dataSync();
+        DATA.testing.predictions = predictions.sign().dataSync();
+        DATA.testing.testingLoss = testingLoss.dataSync()[0];
+        DATA.testing.testingAcc = testingAcc.dataSync()[0];
+        DATA.testing.epoch = i;
       }
     });
     await tf.nextFrame();
