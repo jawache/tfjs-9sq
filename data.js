@@ -23,6 +23,22 @@ class Data {
     // inputs = tf.tensor(inputs);
     // labels = tf.tensor([labels]).transpose(); // We need to convert into columns
 
-    return { labels, inputs };
+    const loss = 0;
+    const weights = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const predictions = [[]];
+    const testingLoss = 0;
+    const testingAcc = 0;
+    const epoch = 0;
+
+    return {
+      labels,
+      inputs,
+      loss,
+      weights,
+      predictions,
+      testingLoss,
+      testingAcc,
+      epoch
+    };
   }
 }

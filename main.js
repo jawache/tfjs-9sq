@@ -23,7 +23,9 @@ function setup() {
 
   validateModel();
   createWeights();
-  trainModel();
+  // trainModel();
+  trainModelSeqDashboard();
+  // watchTraining();
 }
 
 function setupCanvas() {
@@ -43,14 +45,12 @@ function setupCanvas() {
 
 function draw() {
   background(50);
-
   translate(10, 10);
   fill(255)
     .strokeWeight(0)
     .textSize(16)
     .textFont("Helvetica", 24);
   text("9 Squares", 0, 24);
-
   CANVAS.draw();
 }
 
@@ -161,4 +161,89 @@ async function trainModel() {
     });
     await tf.nextFrame();
   }
+}
+
+async function trainModelSeqVis() {
+  //TODO: 1
+  //Show Model first with callbacks
+  //Then show how to watch with tfjs-vis
+  //Then pump it back to dashboard
+  const model = tf.sequential();
+  model.add(tf.layers.dense({ inputShape: [9], units: 1 }));
+
+  const inputs = tf.tensor(DATA.training.inputs);
+  const labels = tf.tensor([DATA.training.labels]).transpose(); // We need to convert into columns
+
+  model.summary();
+  model.compile({
+    optimizer: tf.train.sgd(0.01),
+    loss: "meanSquaredError"
+  });
+
+  const metrics = ["loss", "acc", "val_acc"];
+  const container = { name: "model.fit metrics", tab: "Training" };
+  const callbacks = tfvis.show.fitCallbacks(container, metrics);
+
+  await model.fit(inputs, labels, {
+    epochs: EPOCHS,
+    validationSplit: 0.2,
+    callbacks: callbacks
+    // shuffle: true,
+  });
+
+  const weights = model.layers[0].getWeights()[0].dataSync();
+  console.log({ weights });
+  // callbacks: {
+  //   onEpochEnd: async (epoch, logs) => {
+  //     const trainLoss = logs.loss;
+  //     const valLoss = logs.val_loss;
+  //     const weights = model.layers[0].getWeights()[0].dataSync();
+  //     console.log({ trainLoss, valLoss, weights });
+  //   };
+  // }
+}
+
+async function trainModelSeqDashboard() {
+  //TODO: 2
+  //Pump it all back to the dashboard
+  const model = tf.sequential();
+  model.add(tf.layers.dense({ inputShape: [9], units: 1 }));
+
+  const inputs = tf.tensor(DATA.training.inputs);
+  const labels = tf.tensor([DATA.training.labels]).transpose(); // We need to convert into columns
+
+  const testing_inputs = tf.tensor(DATA.testing.inputs);
+  const testing_labels = tf.tensor([DATA.testing.labels]).transpose(); // We need to convert into columns
+
+  model.summary();
+  model.compile({
+    optimizer: tf.train.sgd(0.001),
+    loss: "meanSquaredError"
+  });
+
+  await model.fit(inputs, labels, {
+    epochs: EPOCHS,
+    // validationSplit: 0,
+    shuffle: true,
+    callbacks: {
+      onEpochEnd: async (epoch, logs) => {
+        const trainLoss = logs.loss;
+        const valLoss = logs.val_loss;
+        const weights = model.layers[0].getWeights()[0].dataSync();
+        WEIGHTS = model.layers[0].getWeights()[0];
+        const predictions = predict(testing_inputs);
+        const testingLoss = loss(predictions, testing_labels);
+        const testingAcc = acc(predictions, testing_labels);
+
+        DATA.testing.loss = trainLoss;
+        DATA.testing.weights = weights;
+        DATA.testing.predictions = predictions.sign().dataSync();
+        DATA.testing.testingLoss = testingLoss.dataSync()[0];
+        DATA.testing.testingAcc = testingAcc.dataSync()[0];
+        DATA.testing.epoch = epoch;
+
+        console.log({ epoch, trainLoss, valLoss, weights });
+      }
+    }
+  });
 }
