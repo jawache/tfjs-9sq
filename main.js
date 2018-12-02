@@ -1,13 +1,11 @@
 // Configuration
-var EPOCHS = 2000;
+var EPOCHS = 1;
 
 // Variables
 var RAW_DATA = null;
 var WEIGHTS = null;
 var DATA = null;
-var PERFORMANCE = null;
 var CANVAS = null;
-var DRAW_CANVAS = false;
 
 function preload() {
   console.log("👉 Preload");
@@ -22,10 +20,10 @@ function setup() {
   setupCanvas();
 
   validateModel();
-  // createWeights();
-  // trainModel();
-  // trainModelSeqDashboard();
-  // watchTraining();
+
+  // trainModelCore();
+  // trainModelLayersVis();
+  trainModelLayersDashboard();
 }
 
 function setupCanvas() {
@@ -60,16 +58,6 @@ function prepareData() {
   console.log(DATA.training);
 }
 
-// Initialise the Weights
-function createWeights() {
-  console.log("👉 createWeights");
-  // Create a weights tensor
-  // This needs to be 9 rows and 1 column so in dot with the inputs it will generate 1 value
-  WEIGHTS = tf.variable(tf.truncatedNormal([9, 1]), true);
-  console.log("WEIGHTS -->");
-  WEIGHTS.print();
-}
-
 function predict(inputs) {
   return inputs.dot(WEIGHTS);
 }
@@ -92,9 +80,7 @@ function validateModel() {
   console.log("👉 validateModel");
 
   // This should be the IDEAL set of target weights!
-  WEIGHTS = tf
-    .variable(tf.tensor([[1, 1, 1, 0, 0, 0, -1, -1, -1]]))
-    .transpose();
+  WEIGHTS = tf.variable(tf.tensor([1, 1, 1, 0, 0, 0, -1, -1, -1], [9, 1]));
 
   // Small set of inputs
   const inputs = tf.tensor([
@@ -104,7 +90,7 @@ function validateModel() {
   ]);
 
   // Small set of labels, 1 means top 3 is higher, -1 means bottom 3 is higher
-  const labels = tf.tensor([[1, -1, -1]]).transpose();
+  const labels = tf.tensor([1, -1, -1], [3, 1]);
 
   console.log("PREDICTED LABELS -->");
   predict(inputs).print();
@@ -118,7 +104,12 @@ function validateModel() {
   acc(predict(inputs), labels).print();
 }
 
-async function trainModel() {
+async function trainModelCore() {
+  // Create a weights tensor, this needs to be 9 rows and 1 column so in dot with the inputs it will generate 1 value
+  WEIGHTS = tf.variable(tf.truncatedNormal([9, 1]), true);
+  console.log("WEIGHTS -->");
+  WEIGHTS.print();
+
   const optimizer = tf.train.sgd(0.01);
 
   const inputs = tf.tensor(DATA.training.inputs);
@@ -163,7 +154,7 @@ async function trainModel() {
   }
 }
 
-async function trainModelSeqVis() {
+async function trainModelLayersVis() {
   //TODO: 1
   //Show Model first with callbacks
   //Then show how to watch with tfjs-vis
@@ -186,9 +177,8 @@ async function trainModelSeqVis() {
 
   await model.fit(inputs, labels, {
     epochs: EPOCHS,
-    validationSplit: 0.2,
-    callbacks: callbacks
-    // shuffle: true,
+    callbacks: callbacks,
+    shuffle: true
   });
 
   const weights = model.layers[0].getWeights()[0].dataSync();
@@ -203,11 +193,16 @@ async function trainModelSeqVis() {
   // }
 }
 
-async function trainModelSeqDashboard() {
+async function trainModelLayersDashboard() {
   //TODO: 2
   //Pump it all back to the dashboard
   const model = tf.sequential();
   model.add(tf.layers.dense({ inputShape: [9], units: 1 }));
+  model.summary();
+  model.compile({
+    optimizer: tf.train.sgd(0.001),
+    loss: "meanSquaredError"
+  });
 
   const inputs = tf.tensor(DATA.training.inputs);
   const labels = tf.tensor([DATA.training.labels]).transpose(); // We need to convert into columns
@@ -215,15 +210,8 @@ async function trainModelSeqDashboard() {
   const testing_inputs = tf.tensor(DATA.testing.inputs);
   const testing_labels = tf.tensor([DATA.testing.labels]).transpose(); // We need to convert into columns
 
-  model.summary();
-  model.compile({
-    optimizer: tf.train.sgd(0.001),
-    loss: "meanSquaredError"
-  });
-
   await model.fit(inputs, labels, {
     epochs: EPOCHS,
-    // validationSplit: 0,
     shuffle: true,
     callbacks: {
       onEpochEnd: async (epoch, logs) => {

@@ -7,7 +7,6 @@
 # Notes
 
 - Help each other out.
-- I don't know anything.
 
 ## Intro (Slides)
 
@@ -36,7 +35,7 @@
 - Why we chose this use case?
 - How would you solve this problem?
 
-  - It's easy with "if's" 
+  - It's easy with "if's"
   - What if you can't use if's? only mults.
 
 - Show matrix multiplication slide, show dot product.
