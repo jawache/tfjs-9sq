@@ -22,9 +22,9 @@ function setup() {
   setupCanvas();
 
   validateModel();
-  createWeights();
+  // createWeights();
   // trainModel();
-  trainModelSeqDashboard();
+  // trainModelSeqDashboard();
   // watchTraining();
 }
 
