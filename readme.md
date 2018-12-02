@@ -7,6 +7,8 @@
 # Notes
 
 - Help each other out.
+- Completed code in `completed` branch
+- Starting code in `master` branch
 
 ## Intro (Slides)
 
