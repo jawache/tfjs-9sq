@@ -99,24 +99,24 @@ class Square {
     push();
     noStroke();
 
+    fill(this.inputs[0]);
     rect(0, 0, SQ_SIZE, SQ_SIZE);
-    fill(this.inputs[0]);
-    rect(5, 0, SQ_SIZE, SQ_SIZE);
     fill(this.inputs[1]);
-    rect(10, 0, SQ_SIZE, SQ_SIZE);
+    rect(5, 0, SQ_SIZE, SQ_SIZE);
     fill(this.inputs[2]);
-    rect(0, 5, SQ_SIZE, SQ_SIZE);
+    rect(10, 0, SQ_SIZE, SQ_SIZE);
     fill(this.inputs[3]);
-    rect(5, 5, SQ_SIZE, SQ_SIZE);
+    rect(0, 5, SQ_SIZE, SQ_SIZE);
     fill(this.inputs[4]);
-    rect(10, 5, SQ_SIZE, SQ_SIZE);
+    rect(5, 5, SQ_SIZE, SQ_SIZE);
     fill(this.inputs[5]);
-    rect(0, 10, SQ_SIZE, SQ_SIZE);
+    rect(10, 5, SQ_SIZE, SQ_SIZE);
     fill(this.inputs[6]);
-    rect(5, 10, SQ_SIZE, SQ_SIZE);
+    rect(0, 10, SQ_SIZE, SQ_SIZE);
     fill(this.inputs[7]);
+    rect(5, 10, SQ_SIZE, SQ_SIZE);
+    fill(this.inputs[8]);
     rect(10, 10, SQ_SIZE, SQ_SIZE);
-    fill(this.inputs[0]);
 
     // Labels & Predictions
     let color = this.label == this.predicted ? "green" : "red";
